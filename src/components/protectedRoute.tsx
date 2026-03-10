@@ -1,7 +1,7 @@
 // src/components/ProtectedRoute.tsx
 import { useEffect, useState, type JSX } from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/context/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 
 export default function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -10,7 +10,11 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
 
   useEffect(() => {
     const validate = async () => {
-      if (!token) return setIsValid(false);
+      if (!token) {
+        setIsValid(false);
+        return <Navigate to="/404" replace />;
+      }
+      
       try {
         await api.get("/auth/validate-token", {
           headers: { Authorization: `Bearer ${token}` },

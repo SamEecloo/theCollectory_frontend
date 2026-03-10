@@ -1,6 +1,4 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Switch } from "@/components/ui/switch";
-import { useTheme } from "@/context/theme-context";
 import { Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -10,11 +8,10 @@ import {
 import {
   Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose,
 } from "@/components/ui/sheet";
-import Breadcrumbs from "@/components/breadcrumbs";
-import { useAuth } from "@/context/useAuth";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function TopBar() {
-  const { theme, toggle } = useTheme();
 
   const { logout } = useAuth();
   const navigate = useNavigate();

@@ -1,19 +1,19 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
+import ReactGA from 'react-ga4';
+import { RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "@/context/theme-context";
-import App from "./App.tsx";
+import { router } from "./router";
 import "./index.css";
+import { ThemedToaster } from './components/themed-toaster';
+
+ReactGA.initialize('G-2E1LPR4HV6');
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <ThemeProvider>
+      <RouterProvider router={router} />
+      <ThemedToaster />
+  </ThemeProvider>
   </React.StrictMode>
 );

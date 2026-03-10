@@ -1,60 +1,32 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { toast } from "sonner"
+import { SignupForm } from "@/components/signup-form"
+import api from "@/lib/api"
 
 export default function Signup() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
+  const handleSignup = async (email: string, username: string, password: string) => {
+    setLoading(true)
     try {
-      const res = await fetch("http://localhost:5000/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.message || "Signup failed");
-        return;
-      }
-
-      localStorage.setItem("token", data.token);
-      navigate("/dashboard");
-    } catch (err) {
-      setError("Something went wrong. Please try again.");
+      const response = await api.post("/auth/signup", { email, username, password })
+      localStorage.setItem("token", response.data.token)
+      toast.success("Account created successfully!")
+      navigate("/dashboard")
+    } catch (err: any) {
+      const message = err.response?.data?.message || "Signup failed. Please try again."
+      toast.error(message)
+    } finally {
+      setLoading(false)
     }
-  };
-
+  }
   return (
-    <div className="max-w-sm mx-auto mt-24 p-6 border rounded-xl shadow-lg">
-      <h2 className="text-2xl font-semibold mb-6">Sign Up</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label>Email</Label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      <div className="flex w-full items-center justify-center p-6 md:p-10">
+        <div className="w-full max-w-sm">
+          <SignupForm onSubmit={handleSignup} loading={loading} />
         </div>
-        <div>
-          <Label>Password</Label>
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </div>
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-        <Button type="submit" className="w-full">Sign Up</Button>
-        <p className="text-sm mt-2 text-center">
-          Already have an account?{" "}
-          <Link to="/login" className="text-blue-600 hover:underline">
-            Log in
-          </Link>
-        </p>
-      </form>
-    </div>
-  );
+      </div>
+    )
 }

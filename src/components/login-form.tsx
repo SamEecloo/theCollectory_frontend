@@ -1,3 +1,4 @@
+// login-form.tsx
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,29 +11,34 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useState } from "react"
+import { Link } from "react-router-dom"
 
 type LoginFormProps = {
-  onSubmit: (username: string, password: string) => void
-} & React.ComponentProps<"div">
+  onSubmit: (email: string, password: string) => void
+  className?: string
+}
 
-export function LoginForm({ className, onSubmit, ...props }: LoginFormProps){
-  const [username, setUsername] = useState("")
+export function LoginForm({ className, onSubmit }: LoginFormProps) {
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
 
-  //const handleSubmit = (e: React.FormEvent) => {
-  //  e.preventDefault()
-  //  onSubmit(username, password)
-  //}
-
-  const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
-  const username = (e.target as HTMLFormElement).username.value;
-  const password = (e.target as HTMLFormElement).password.value;
-  onSubmit(username, password);
-};
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    try {
+      await onSubmit(email, password)
+    } catch (err: any) {
+      if (err.message === 'not_activated') {
+        setError('Your account has not been activated yet. Please check your email.')
+      } else {
+        setError('Invalid email or password.')
+      }
+    }
+  }
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <div className={cn("flex flex-col gap-6 w-full", className)}>
       <Card>
         <CardHeader>
           <CardTitle>Login to your account</CardTitle>
@@ -46,23 +52,20 @@ export function LoginForm({ className, onSubmit, ...props }: LoginFormProps){
               <div className="grid gap-3">
                 <Label htmlFor="email">Email</Label>
                 <Input
-                  id="username"
+                  id="email"
                   type="email"
                   placeholder="m@example.com"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
               <div className="grid gap-3">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                  >
+                  <Link to="/forgot-password" className="ml-auto inline-block text-sm underline-offset-4 hover:underline">
                     Forgot your password?
-                  </a>
+                  </Link>
                 </div>
                 <Input 
                   id="password" 
@@ -72,6 +75,9 @@ export function LoginForm({ className, onSubmit, ...props }: LoginFormProps){
                   required 
                 />
               </div>
+              {error && (
+                <p className="text-sm text-red-500">{error}</p>
+              )}
               <div className="flex flex-col gap-3">
                 <Button variant="default" type="submit" className="w-full">
                   Login
@@ -83,9 +89,9 @@ export function LoginForm({ className, onSubmit, ...props }: LoginFormProps){
             </div>
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{" "}
-              <a href="#" className="underline underline-offset-4">
+              <Link to="/signup">
                 Sign up
-              </a>
+              </Link>
             </div>
           </form>
         </CardContent>

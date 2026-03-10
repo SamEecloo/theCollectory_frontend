@@ -1,11 +1,11 @@
 import { createContext, useState, type ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "@/lib/api"; // adjust path if needed
 
 interface AuthContextType {
   token: string | null;
+  username: string | null;
   setToken: (token: string | null) => void;
-  login: (token: string) => void;
+  login: (token: string, username: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -14,12 +14,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setTokenState] = useState<string | null>(localStorage.getItem("token"));
+  const [username, setUsernameState] = useState<string | null>(localStorage.getItem("username"));
   const navigate = useNavigate();
 
   useEffect(() => {
     const saved = localStorage.getItem("token");
+    const savedUsername = localStorage.getItem("username");
     if (saved) setToken(saved);
+    if (savedUsername) setUsernameState(savedUsername);
   }, []);
+
   const setToken = (newToken: string | null) => {
     if (newToken) {
       localStorage.setItem("token", newToken);
@@ -28,20 +32,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setTokenState(newToken);
   };
-  const login = (newToken: string) => {
+
+  const login = (newToken: string, newUsername: string) => {
     localStorage.setItem("token", newToken);
-    setToken(newToken);
-    
+    localStorage.setItem("username", newUsername);
+    setTokenState(newToken);
+    setUsernameState(newUsername);
   };
 
   const logout = () => {
     localStorage.removeItem("token");
-    setToken(null);
+    localStorage.removeItem("username");
+    setTokenState(null);
+    setUsernameState(null);
     navigate("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ token, setToken, login, logout, isAuthenticated: !!token }}>
+    <AuthContext.Provider
+      value={{ token, username, setToken, login, logout, isAuthenticated: !!token }}
+    >
       {children}
     </AuthContext.Provider>
   );
