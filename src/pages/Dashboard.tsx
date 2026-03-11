@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Copy, CheckCircle2, Circle, Check, BarChart3, Settings, Trash, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Copy, CheckCircle2, Circle, Check, BarChart3, Settings, Trash, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -100,7 +100,8 @@ export default function Dashboard() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl">My Collections</h1>
         <Button onClick={() => navigate("/collections/new")}>
-          + New Collection
+          <Plus className="w-4 h-4" />
+          <span className="hidden sm:inline">New Collection</span>
         </Button>
       </div>
 
@@ -115,12 +116,16 @@ export default function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {collections.map((collection) => (
-            <Card key={collection._id}>
+            <Card
+              key={collection._id}
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate(`/collections/${collection.name}`)}
+            >
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{collection.name}</CardTitle>
                   <div className="flex items-center gap-1">
-                    <span 
+                    <span
                       title={collection.isPublic ? "Public - Anyone can view" : "Private - Only you can view"}
                       className="inline-flex cursor-help"
                     >
@@ -130,7 +135,7 @@ export default function Dashboard() {
                         <EyeOff className="h-4 w-4 text-muted-foreground" />
                       )}
                     </span>
-                    <span 
+                    <span
                       title={collection.isActive ? "Active" : "Inactive"}
                       className="inline-flex cursor-help"
                     >
@@ -144,54 +149,45 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4">
-                {/* Item Count */}
-                <div className="text-sm text-muted-foreground">
-                  {collection.itemCount !== undefined 
-                    ? `${collection.itemCount} item${collection.itemCount !== 1 ? 's' : ''}`
-                    : 'Loading...'
-                  }
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => navigate(`/collections/${collection.name}`)}
-                    className="flex-1"
-                  >
-                    View
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => navigate(`/collections/${collection.name}/edit`)}
-                    title="Settings"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => navigate(`/collections/${collection.name}/stats`)}
-                    title="Statistics"
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="icon"
-                    onClick={() => handleDeleteClick(collection.name)}
-                    title="Delete"
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {collection.itemCount !== undefined
+                      ? `${collection.itemCount} item${collection.itemCount !== 1 ? 's' : ''}`
+                      : 'Loading...'
+                    }
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/collections/${collection.name}/edit`); }}
+                      title="Settings"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/collections/${collection.name}/stats`); }}
+                      title="Statistics"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteClick(collection.name); }}
+                      title="Delete"
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Public URL */}
                 {collection.isPublic && (
-                  <div>
+                  <div className="mt-3">
                     <p className="text-xs text-muted-foreground mb-1">Public URL:</p>
                     <div className="flex gap-1">
                       <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">

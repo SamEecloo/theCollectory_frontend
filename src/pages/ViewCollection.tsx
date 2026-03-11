@@ -2,7 +2,7 @@
 import { PrintToPDFModal } from "@/components/print-to-pdf";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Image, ImageOff, BarChart3, Settings, MoreHorizontal, Upload, FileDown, Heart, SlidersHorizontal } from 'lucide-react';
+import { Image, ImageOff, BarChart3, Settings, MoreHorizontal, Upload, FileDown, Heart, SlidersHorizontal, Plus } from 'lucide-react';
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -296,7 +296,7 @@ function LayoutView({
           <div
             key={row.fieldId}
             style={{ gridColumn: `span ${span}`, minWidth: 0 }}
-            className={`truncate ${isSecondLine ? 'text-muted-foreground text-xs' : ''}`}
+            className={`truncate ${isSecondLine ? 'text-muted-foreground text-sm' : ''}`}
           >
             {content}
           </div>
@@ -332,7 +332,7 @@ function LayoutView({
                   <div
                     key={gf.fieldId}
                     style={{ gridColumn: `span ${innerSpan}`, minWidth: 0 }}
-                    className={`truncate ${isSecondLine ? 'text-muted-foreground text-xs' : ''}`}
+                    className={`truncate ${isSecondLine ? 'text-muted-foreground text-sm' : ''}`}
                   >
                     {content}
                   </div>
@@ -387,7 +387,7 @@ function LayoutView({
             if (!field) return null;
             return (
               <span
-                className="text-sm"
+                className={isSecondLine ? "text-xs" : "text-sm"}
                 style={field.showAsBold ? { fontWeight: 600 } : undefined}
               >
                 {renderCell(field, item.properties[fieldId], isSecondLine)}
@@ -501,6 +501,16 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
   const [deleting, setDeleting] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+
+  // Radix bug: Select portals inside Dialog can leave pointer-events: none + data-scroll-locked on body
+  useEffect(() => {
+    if (showImport) return;
+    const timer = setTimeout(() => {
+      document.body.style.pointerEvents = '';
+      document.body.removeAttribute('data-scroll-locked');
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [showImport]);
 
   // Filters — restored from localStorage on mount
   const [filterParams, setFilterParams] = useState<Record<string, any>>(() => {
@@ -927,8 +937,8 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
     if (field.type === "image") {
       const hasImages = Array.isArray(value) && value.length > 0;
       return (
-        <div className="flex items-center gap-2">
-          <Image className={`h-5 w-5 ${hasImages ? (isSecondLine ? 'text-muted-foreground' : 'text-primary') : 'text-image-empty'}`} />
+        <div className="flex items-center gap-1.5">
+          <Image className={`h-4 w-4 shrink-0 ${hasImages ? (isSecondLine ? 'text-muted-foreground' : 'text-primary') : 'text-muted-foreground/40'}`} />
           {hasImages && <span className="text-xs text-muted-foreground">{value.length}</span>}
         </div>
       );
@@ -985,9 +995,10 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
             {!isPublicView && (
               <>
                 <Button onClick={() => navigate(`/collections/${collection?.name}/add-item`)}>
-                  Add Item
+                  <Plus className="h-4 w-4"/>
+                  <span className="hidden sm:inline">Add Item</span>
                 </Button>
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
                       <MoreHorizontal className="h-5 w-5" />
@@ -1208,7 +1219,10 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
         </AlertDialogContent>
       </AlertDialog>
       <Dialog open={showImport} onOpenChange={setShowImport}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent
+          className="max-w-3xl max-h-[90vh] overflow-y-auto p-0"
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           {collection && (
             <ImportCSV
               collectionName={collection.name}

@@ -5,7 +5,7 @@ import Dashboard from "@/pages/Dashboard";
 import PublicDashboard from "@/pages/PublicDashboard";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
-import UpsertCollection from "@/pages/UpsertCollection";
+import UpsertCollection from "@/pages/UpsertCollection_v2";
 import ViewItem from "@/pages/ViewItem";
 import UpsertItem from "@/pages/UpsertItem";
 import ProtectedRoute from "@/components/protectedRoute";

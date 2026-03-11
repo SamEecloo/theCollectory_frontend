@@ -1,7 +1,7 @@
 // src/pages/UpsertItem.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useBlocker  } from "react-router-dom";
-import { Trash2, Loader2, Heart } from "lucide-react";
+import { Trash2, Loader2, Heart, Sparkles } from "lucide-react";
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +113,7 @@ export default function UpsertItem() {
   const [showDateDialog, setShowDateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isWishlist, setIsWishlist] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -289,6 +290,45 @@ export default function UpsertItem() {
     }
   };
 
+  const handleAnalyzeImage = async () => {
+    if (!collection) return;
+    // Find the first image field that has at least one uploaded image
+    const imageField = activeFields.find(f => f.type === 'image' && values[f._id]?.length > 0);
+    if (!imageField) return;
+    const firstImage = values[imageField._id][0];
+
+    setAnalyzing(true);
+    try {
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      const imgRes = await fetch(`${BACKEND_URL}${firstImage.url}`);
+      const blob = await imgRes.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+
+      const { data } = await api.post('/ai/analyze-image', {
+        imageBase64: base64,
+        mimeType: blob.type || 'image/jpeg',
+        fields: collection.config.fields,
+      });
+
+      // Merge AI values into current values, skipping nulls
+      const merged: Record<string, any> = { ...values };
+      for (const [key, val] of Object.entries(data.values)) {
+        if (val !== null && val !== undefined) merged[key] = val;
+      }
+      setValues(merged);
+      setIsDirty(true);
+      toast.success('Fields filled from image analysis');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Image analysis failed');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!itemId) return;
     if (!collectionName) return;
@@ -314,7 +354,7 @@ export default function UpsertItem() {
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="py-4 sm:p-6 space-y-4">
       {isEdit && <ItemNavigation mode="edit" />}
 
       <Card>
@@ -333,11 +373,11 @@ export default function UpsertItem() {
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Two column layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Left column - standard fields */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {activeFields.map(field => {
                   const fieldId = `field-${field._id}`;
                   const value = values[field._id];
@@ -345,8 +385,8 @@ export default function UpsertItem() {
                   switch (field.type) {
                     case "text":
                       return (
-                        <div key={field._id} className="space-y-2">
-                          <Label htmlFor={fieldId}>{field.long}</Label>
+                        <div key={field._id} className="space-y-2.5">
+                          <Label htmlFor={fieldId} className="text-xs">{field.long}</Label>
                           <Input
                             className="w-full"
                             id={fieldId}
@@ -358,8 +398,8 @@ export default function UpsertItem() {
 
                     case "number":
                       return (
-                        <div key={field._id} className="space-y-2">
-                          <Label htmlFor={fieldId}>{field.long}</Label>
+                        <div key={field._id} className="space-y-2.5">
+                          <Label htmlFor={fieldId} className="text-xs">{field.long}</Label>
                           <Input
                             className="w-full"
                             id={fieldId}
@@ -378,14 +418,14 @@ export default function UpsertItem() {
                             checked={Boolean(value)}
                             onCheckedChange={(v) => setValue(field._id, v === true)}
                           />
-                          <Label htmlFor={fieldId}>{field.long}</Label>
+                          <Label htmlFor={fieldId} className="text-xs">{field.long}</Label>
                         </div>
                       );
 
                     case "dropdown":
                       return (
-                        <div key={field._id} className="space-y-2">
-                          <Label htmlFor={fieldId}>{field.long}</Label>
+                        <div key={field._id} className="space-y-2.5">
+                          <Label htmlFor={fieldId} className="text-xs">{field.long}</Label>
                           <Select value={value ?? ""} onValueChange={(v) => setValue(field._id, v)}>
                             <SelectTrigger className="w-full" id={fieldId}>
                               <SelectValue placeholder="Select…" />
@@ -403,8 +443,8 @@ export default function UpsertItem() {
 
                     case "textarea":
                       return (
-                        <div key={field._id} className="space-y-2">
-                          <Label htmlFor={fieldId}>{field.long}</Label>
+                        <div key={field._id} className="space-y-2.5">
+                          <Label htmlFor={fieldId} className="text-xs">{field.long}</Label>
                           <Textarea
                             className="w-full"
                             id={fieldId}
@@ -416,8 +456,8 @@ export default function UpsertItem() {
 
                     case "date":
                       return (
-                        <div key={field._id} className="space-y-2">
-                          <Label htmlFor={fieldId}>{field.long}</Label>
+                        <div key={field._id} className="space-y-2.5">
+                          <Label htmlFor={fieldId} className="text-xs">{field.long}</Label>
                           <DatePicker
                             value={value ? new Date(value) : undefined}
                             onChange={(date) => setValue(field._id, date ? date.toISOString() : undefined)}
@@ -433,15 +473,32 @@ export default function UpsertItem() {
               </div>
 
               {/* Right column - tags and images */}
-              <div className="space-y-4">
+              <div className="space-y-3">
+                {/* AI analyze button — shown when at least one image is uploaded */}
+                {activeFields.some(f => f.type === 'image' && values[f._id]?.length > 0) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAnalyzeImage}
+                    disabled={analyzing}
+                    className="w-full"
+                  >
+                    {analyzing ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Analyzing…</>
+                    ) : (
+                      <><Sparkles className="h-4 w-4 mr-2" />Analyze with AI</>
+                    )}
+                  </Button>
+                )}
                 {activeFields.map(field => {
                   const value = values[field._id];
 
                   if (field.type === "tags") {
                     if(!collection) return;
                     return (
-                      <div key={field._id} className="space-y-2">
-                        <Label>{field.long}</Label>
+                      <div key={field._id} className="space-y-2.5">
+                        <Label className="text-xs">{field.long}</Label>
                         <TagSelector
                           collectionName={collectionName!}
                           collectionId={collection._id!}
@@ -457,8 +514,8 @@ export default function UpsertItem() {
                   if (field.type === "image") {
                     if(!collection) return;
                     return (
-                      <div key={field._id} className="space-y-2">
-                        <Label>{field.long}</Label>
+                      <div key={field._id} className="space-y-2.5">
+                        <Label className="text-xs">{field.long}</Label>
                         <ImageUploadManager
                           key={`${itemId || 'new'}-${field._id}-${imageKey}`}
                           userId={userId!}
@@ -581,7 +638,7 @@ export default function UpsertItem() {
       </Card>
       <div className="flex items-center justify-between">
         {lastUpdated && isEdit && (
-          <span className="text-sm text-muted-foreground mt-1">
+          <span className="text-sm text-muted-foreground mt-1 ml-4">
             Updated {getRelativeTime(lastUpdated)}
           </span> 
         )}

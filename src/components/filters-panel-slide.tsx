@@ -276,7 +276,7 @@ export default function FiltersPanel({
         </div>
 
         {/* Scrollable filter content */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {filterable.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               No filterable fields configured.<br />
@@ -291,7 +291,7 @@ export default function FiltersPanel({
                 const v = values[id] || {};
                 return (
                   <div key={id} className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
@@ -314,7 +314,7 @@ export default function FiltersPanel({
               if (f.type === "checkbox") {
                 return (
                   <div key={id} className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
                     <Select
                       value={values[id] === undefined ? "__show_all__" : values[id] === true ? "true" : "false"}
                       onValueChange={(v) => setVal(id, v === "__show_all__" ? undefined : v === "true")}
@@ -333,7 +333,7 @@ export default function FiltersPanel({
               if (f.type === "image") {
                 return (
                   <div key={id} className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
                     <Select
                       value={values[id] === undefined ? "__show_all__" : values[id] === true ? "true" : "false"}
                       onValueChange={(v) => setVal(id, v === "__show_all__" ? undefined : v === "true")}
@@ -355,7 +355,7 @@ export default function FiltersPanel({
                 );
                 return (
                   <div key={id} className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
                     <Select
                       value={values[id] ?? "__show_all__"}
                       onValueChange={(v) => setVal(id, v === "__show_all__" ? undefined : v)}
@@ -378,7 +378,7 @@ export default function FiltersPanel({
                   : (values[id] ? String(values[id]).split(",").map(s => s.trim()).filter(Boolean) : []);
                 return (
                   <div key={id} className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
                     <TagSelector
                       collectionName={collectionName}
                       collectionId={collectionId}
@@ -395,7 +395,7 @@ export default function FiltersPanel({
               // text / textarea / date / etc.
               return (
                 <div key={id} className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
                   <div className="relative">
                     <Input
                       placeholder={`Contains…`}

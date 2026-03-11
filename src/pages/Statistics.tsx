@@ -301,7 +301,7 @@ export default function Statistics() {
   const activeWidget = activeId ? widgets.find(w => w.id === activeId) : null;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="py-4 sm:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -366,7 +366,7 @@ export default function Statistics() {
               On mobile: single column. On md+: two columns.
               Padding-left gives space for the drag handle.
             */}
-            <div className="columns-1 md:columns-2 gap-6 space-y-6 pl-5">
+            <div className="columns-1 md:columns-2 gap-6 space-y-6 sm:pl-5">
               {sortedWidgets.map((widget) => (
                 <SortableWidget key={widget.id} widget={widget}>
                   {renderWidgetContent(widget)}

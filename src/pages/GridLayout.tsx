@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
-import GridLayoutEditor from "@/components/grid-layout-editor";
+import GridLayoutEditor from "@/components/grid-layout-editor_v2";
+import { Save, ArrowLeft } from "lucide-react";
 import { type IGridRowItem, type ILayoutConfig, DEFAULT_LAYOUT } from "@/types";
 import api from "@/lib/api";
 
@@ -15,6 +16,9 @@ type Field = {
   type: string;
   isActive?: boolean;
   useInGrid?: boolean;
+  showInHeader?: boolean;
+  showAsBold?: boolean;
+  displayAs?: "long" | "short";
 };
 
 export default function GridLayout() {
@@ -43,7 +47,7 @@ export default function GridLayout() {
         const res = await api.get(`/collections/${collectionName}`);
         const c = res.data;
 
-        setFields(c.config?.fields || []);
+        setFields((c.config?.fields || []).filter((f: Field) => f.useInGrid !== false));
         setGridRows(c.config?.layout?.gridRows ?? []);
 
         if (c.config?.layout) {
@@ -96,36 +100,32 @@ export default function GridLayout() {
   }
 
   return (
-    <div className="p-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Grid Layout - {collectionName}</h1>
-        </div>
+    <div className="py-4 sm:p-6 space-y-4">
+      <div className="flex items-center justify-between px-4 sm:px-0">
+        <h1 className="text-2xl">Grid Layout</h1>
         <div className="flex gap-2">
           <Button
+            type="button"
             variant="outline"
             onClick={() => navigate(`/collections/${collectionName}/edit`)}
           >
-            Cancel
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Cancel</span>
           </Button>
-          <Button onClick={handleSave}>Save Layout</Button>
+          <Button 
+            type="button"
+            onClick={handleSave}
+          >
+            <Save className="h-4 w-4" />
+            <span className="hidden sm:inline">Save</span>
+          </Button>
         </div>
       </div>
-
-      {/* Grid Layout Editor */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Configure Grid Layout</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <GridLayoutEditor
-            fields={fields}
-            gridRows={gridRows}
-            onChange={setGridRows}
-          />
-        </CardContent>
-      </Card>
+      <GridLayoutEditor
+        fields={fields}
+        gridRows={gridRows}
+        onChange={setGridRows}
+      />
     </div>
   );
 }

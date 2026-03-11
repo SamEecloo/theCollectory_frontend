@@ -320,7 +320,7 @@ export function PrintToPDFModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-4">
           <div className="space-y-1.5">
             <Label htmlFor="pdf-title">Document title</Label>
             <Input
@@ -358,7 +358,7 @@ export function PrintToPDFModal({
           <Button
             onClick={handleGenerate}
             disabled={generating || totalItems === 0}
-            className="gap-2"
+            className="gap-2 mb-2"
           >
             {generating ? (
               <>

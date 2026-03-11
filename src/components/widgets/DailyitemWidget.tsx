@@ -11,6 +11,7 @@ type Field = {
   type: string;
   isActive?: boolean;
   showInHeader?: boolean;
+  orientation?: 'landscape' | 'portrait' | 'square';
   options?: Array<{ _id: string; long: string; short: string }>;
 };
 
@@ -54,6 +55,7 @@ export default function DailyItemWidget({ collectionId, collectionName, onRemove
   const [item, setItem] = useState<Item | null>(null);
   const [fields, setFields] = useState<Field[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageOrientation, setImageOrientation] = useState<'landscape' | 'portrait' | 'square'>('landscape');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -93,8 +95,9 @@ export default function DailyItemWidget({ collectionId, collectionName, onRemove
       const imageField = activeFields.find((f) => f.type === 'image');
        
       if (imageField) {
+        setImageOrientation(imageField.orientation ?? 'landscape');
         const imgValue = picked.properties[imageField._id];
-       
+
         if (Array.isArray(imgValue) && imgValue.length > 0) {
             const backendUrl = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5000';
             setImageUrl(backendUrl + (imgValue[0].thumbnailUrl ?? imgValue[0].url ?? ''));
@@ -150,7 +153,11 @@ export default function DailyItemWidget({ collectionId, collectionName, onRemove
 
           {/* Image */}
           {imageUrl && (
-            <div className="rounded-xl overflow-hidden bg-muted aspect-video w-full">
+            <div className={`rounded-xl overflow-hidden bg-muted w-full ${
+              imageOrientation === 'portrait' ? 'aspect-[3/4]' :
+              imageOrientation === 'square'   ? 'aspect-square' :
+                                               'aspect-[4/3]'
+            }`}>
               <img
                 src={imageUrl}
                 alt="Item"

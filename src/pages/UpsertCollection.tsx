@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
-import { GripVertical, AlertCircle, Loader2, Trash } from "lucide-react";
+import { GripVertical, AlertCircle, Loader2, Trash, LayoutGrid, Save } from "lucide-react";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -363,8 +363,8 @@ export default function UpsertCollection() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center mb-6">
+    <div className="py-4 sm:p-6 space-y-4">
+      <div className="flex items-center justify-between px-4 sm:px-0">
         <h1 className="text-2xl">{isEdit ? "Edit Collection" : "Create Collection"}</h1>
         <div className=" flex gap-2 ">
           <Button
@@ -372,30 +372,24 @@ export default function UpsertCollection() {
             variant="outline"
             onClick={() => navigate(`/collections/${collectionName}/grid-layout`)}
           >
-            Grid Layout
+            <LayoutGrid className="h-4 w-4" />
+            <span className="hidden sm:inline">Grid Layout</span>
           </Button>
           <Button
             type="button"
             onClick={handleSave}
             disabled={!isFormValid()}
           >
-            {isEdit ? "Update Collection" : "Save Collection"}
+            <Save className="h-4 w-4" />
+            <span className="hidden sm:inline">{isEdit ? "Update" : "Save"}</span>
           </Button>
         </div>
-          
-        
-      </div>
-      <div className="flex gap-2 justify-end">
-        
       </div>
       <Card>
         <CardContent className="p-6 space-y-6">
 
           {/* ── Collection Settings ── */}
-          <div className="space-y-4">
-            {/* Buttons row */}
-            
-
+          <div className="space-y-2">
             {/* Settings grid - responsive: 1 col mobile, 2 cols desktop */}
             <div className="grid gap-4 md:grid-cols-2">
               {/* Collection name */}

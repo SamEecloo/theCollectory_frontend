@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import api from "@/lib/api";
 import { AddFriendButton } from "@/components/add-friend";
@@ -72,26 +71,20 @@ export default function PublicDashboard() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {collections.map((collection) => (
-              <Card key={collection._id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={collection._id}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/${username}/${encodeURIComponent(collection.name)}`)}
+              >
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{collection.name}</CardTitle>
-                  </div>
+                  <CardTitle className="text-lg">{collection.name}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent>
                   <div className="text-sm text-muted-foreground">
                     {collection.itemCount !== undefined
                       ? `${collection.itemCount} item${collection.itemCount !== 1 ? 's' : ''}`
                       : 'Loading...'}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => navigate(`/${username}/${encodeURIComponent(collection.name)}`)}
-                  >
-                    View Collection
-                  </Button>
                 </CardContent>
               </Card>
             ))}

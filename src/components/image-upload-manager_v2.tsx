@@ -13,6 +13,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Upload, X, Star, RotateCw, Crop as CropIcon,
   ZoomIn, ZoomOut, Plus, Loader2, FlipHorizontal2,
 } from 'lucide-react';
@@ -122,7 +132,6 @@ export type CropEditorHandle = {
 const CropEditor = forwardRef<CropEditorHandle, CropEditorProps>(
   function CropEditor({ src, aspect }, ref) {
   const CONTAINER_W = CROP_CONTAINER_W;
-  const CONTAINER_H = Math.round(CONTAINER_W / aspect);
 
   // Measure actual rendered width so height stays proportional on mobile
   const containerRef = useRef<HTMLDivElement>(null);
@@ -169,10 +178,10 @@ const CropEditor = forwardRef<CropEditorHandle, CropEditorProps>(
     const θ = (deg * Math.PI) / 180;
     const cosT = Math.abs(Math.cos(θ));
     const sinT = Math.abs(Math.sin(θ));
-    const neededW = (CONTAINER_W * cosT + CONTAINER_H * sinT) / nw;
-    const neededH = (CONTAINER_W * sinT + CONTAINER_H * cosT) / nh;
+    const neededW = (actualW * cosT + actualH * sinT) / nw;
+    const neededH = (actualW * sinT + actualH * cosT) / nh;
     return Math.max(neededW, neededH);
-  }, [CONTAINER_W, CONTAINER_H]);
+  }, [actualW, actualH]);
 
   // When there's no rotation: only require the height to fill the frame.
   // Width can be smaller (portrait/narrow covers get transparent side bars).
@@ -181,7 +190,7 @@ const CropEditor = forwardRef<CropEditorHandle, CropEditorProps>(
   const minScale = naturalSize
     ? isRotated
       ? coverScale(naturalSize.w, naturalSize.h, rotation)
-      : CONTAINER_H / naturalSize.h
+      : actualH / naturalSize.h
     : 1;
 
   // Clamp offset so no background bleeds into the frame.
@@ -196,7 +205,7 @@ const CropEditor = forwardRef<CropEditorHandle, CropEditorProps>(
       // Height always fills → no vertical pan freedom.
       // Width may be smaller than container → X is unconstrained (image centred by CSS).
       const scaledW = naturalSize.w * s;
-      const hw = Math.max(0, (scaledW - CONTAINER_W) / 2);
+      const hw = Math.max(0, (scaledW - actualW) / 2);
       return {
         x: Math.min(hw, Math.max(-hw, ox)),
         y: 0,
@@ -208,13 +217,13 @@ const CropEditor = forwardRef<CropEditorHandle, CropEditorProps>(
     const sinT = Math.abs(Math.sin(θ));
     const bboxW = (naturalSize.w * cosT + naturalSize.h * sinT) * s;
     const bboxH = (naturalSize.w * sinT + naturalSize.h * cosT) * s;
-    const hw = Math.max(0, (bboxW - CONTAINER_W) / 2);
-    const hh = Math.max(0, (bboxH - CONTAINER_H) / 2);
+    const hw = Math.max(0, (bboxW - actualW) / 2);
+    const hh = Math.max(0, (bboxH - actualH) / 2);
     return {
       x: Math.min(hw, Math.max(-hw, ox)),
       y: Math.min(hh, Math.max(-hh, oy)),
     };
-  }, [naturalSize, CONTAINER_W, CONTAINER_H]);
+  }, [naturalSize, actualW, actualH]);
 
   // Reset everything when src or aspect changes
   useEffect(() => {
@@ -289,7 +298,7 @@ const CropEditor = forwardRef<CropEditorHandle, CropEditorProps>(
     const nh = img.naturalHeight;
     setNaturalSize({ w: nw, h: nh });
     // Default: fit by height so narrow covers show transparent side bars
-    const s = CONTAINER_H / nh;
+    const s = actualH / nh;
     setScale(s);
     setOffset({ x: 0, y: 0 });
     setReady(true);
@@ -490,20 +499,22 @@ const CropEditor = forwardRef<CropEditorHandle, CropEditorProps>(
           onChange={(e) => applyFineRotation(parseFloat(e.target.value))}
           className="flex-1 accent-primary cursor-pointer"
         />
-        <span className="text-xs text-muted-foreground w-12 text-right tabular-nums">
-          {fineRotation > 0 ? `+${fineRotation.toFixed(1)}°` : fineRotation < 0 ? `${fineRotation.toFixed(1)}°` : '0°'}
-          {baseRotation !== 0 ? ` +${baseRotation}°` : ''}
-        </span>
-        {(fineRotation !== 0 || baseRotation !== 0) && (
-          <button
-            type="button"
-            onClick={() => { applyFineRotation(0); setBaseRotation(0); }}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            title="Reset all rotation"
-          >
-            ↺
-          </button>
-        )}
+        <div className="flex items-center justify-end gap-1 w-[68px] flex-shrink-0">
+          <span className="text-xs text-muted-foreground tabular-nums text-right">
+            {fineRotation > 0 ? `+${fineRotation.toFixed(1)}°` : fineRotation < 0 ? `${fineRotation.toFixed(1)}°` : '0°'}
+            {baseRotation !== 0 ? ` +${baseRotation}°` : ''}
+          </span>
+          {(fineRotation !== 0 || baseRotation !== 0) && (
+            <button
+              type="button"
+              onClick={() => { applyFineRotation(0); setBaseRotation(0); }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              title="Reset all rotation"
+            >
+              ↺
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -537,6 +548,7 @@ export default function ImageUploadManager({
     initialImages.length > 0 ? initialImages[0].id : null,
   );
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // ── Sync with parent-supplied initialImages ──────────────────────────────
   useEffect(() => {
@@ -644,9 +656,10 @@ export default function ImageUploadManager({
 
   // ── Delete ────────────────────────────────────────────────────────────────
 
-  const handleDelete = async (imageId: string) => {
-    if (!confirm('Mark this image for deletion? It will be permanently deleted when you save the item.'))
-      return;
+  const confirmDelete = async () => {
+    const imageId = deleteConfirmId;
+    setDeleteConfirmId(null);
+    if (!imageId) return;
     try {
       await api.delete(`/images/${userId}/${collectionId}/${itemId}/${imageId}`);
       const newImages = images.filter((img) => img.id !== imageId);
@@ -857,7 +870,7 @@ export default function ImageUploadManager({
                   type="button"
                   size="sm"
                   variant="destructive"
-                  onClick={() => handleDelete(activeImage.id)}
+                  onClick={() => setDeleteConfirmId(activeImage.id)}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -979,6 +992,24 @@ export default function ImageUploadManager({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Delete confirmation dialog ── */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete image?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This image will be permanently deleted when you save the item. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Image editor dialog ── */}
       {editingImage && (

@@ -20,7 +20,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import api from "@/lib/api";
@@ -354,7 +353,7 @@ function MapStep({
           <span>Collection Field</span>
         </div>
 
-        <ScrollArea className="max-h-[420px]">
+        <div className="overflow-y-auto max-h-[420px]">
           {mappings.map((m, idx) => {
             const preview = previewRows[0]?.[m.csvColumn] ?? "";
             const mappedField = fields.find((f) => f._id === m.fieldId);
@@ -422,7 +421,7 @@ function MapStep({
               </div>
             );
           })}
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );
@@ -448,7 +447,7 @@ function PreviewStep({
         Showing first {PREVIEW_COUNT} of {rows.length} rows. Columns set to <em>Skip</em> are excluded.
       </p>
 
-      <ScrollArea className="rounded-lg border max-h-[400px]">
+      <div className="overflow-y-auto rounded-lg border max-h-[400px]">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/50">
@@ -492,7 +491,7 @@ function PreviewStep({
             ))}
           </tbody>
         </table>
-      </ScrollArea>
+      </div>
 
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <FileText className="w-4 h-4" />
@@ -613,11 +612,11 @@ function ImportStep({
           </p>
         </div>
         {result.errors.length > 0 && (
-          <ScrollArea className="w-full max-h-40 rounded-lg border p-3 text-xs font-mono text-destructive bg-destructive/5">
+          <div className="w-full overflow-y-auto max-h-40 rounded-lg border p-3 text-xs font-mono text-destructive bg-destructive/5">
             {result.errors.map((e, i) => (
               <div key={i}>Row {e.row}: {e.message}</div>
             ))}
-          </ScrollArea>
+          </div>
         )}
       </div>
     );
