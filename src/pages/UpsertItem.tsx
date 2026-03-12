@@ -482,7 +482,6 @@ export default function UpsertItem() {
                     size="sm"
                     onClick={handleAnalyzeImage}
                     disabled={analyzing}
-                    className="w-full"
                   >
                     {analyzing ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Analyzing…</>

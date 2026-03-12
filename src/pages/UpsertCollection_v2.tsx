@@ -39,15 +39,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { FIELD_TYPES } from "@/constants/fieldTypes";
 import api from "@/lib/api";
 
@@ -73,10 +64,6 @@ type Field = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const hash = (s: string) =>
-  Array.from(s).reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
-
 const makeEmptyField = (): Field => ({
   _id: uuidv4(),
   short: "",
@@ -320,28 +307,6 @@ export default function UpsertCollection() {
     } catch (err: any) {
       toast.error(err.response?.data?.error || "Failed to save collection");
     }
-  };
-
-  // ─── Preview cell ─────────────────────────────────────────────────────────
-
-  const previewCell = (f: Field) => {
-    if (f.type === "dropdown") {
-      const opts = f.options || [];
-      if (!opts.length) return <span className="text-muted-foreground italic">no options</span>;
-      const idx = Math.abs(hash(f._id || f.short || "")) % opts.length;
-      const opt = opts[idx];
-      return (
-        <span>{f.displayAs === "short" ? opt.short || "(short)" : opt.long || "(long)"}</span>
-      );
-    }
-    if (f.type === "checkbox") {
-      return <span className="font-medium">{f.displayAs === "short" ? f.short : f.long}</span>;
-    }
-    return (
-      <span className="text-muted-foreground">
-        {f.displayAs === "short" ? f.short : f.long}
-      </span>
-    );
   };
 
   // ─── Editing field ────────────────────────────────────────────────────────
