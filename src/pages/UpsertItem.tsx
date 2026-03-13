@@ -93,7 +93,8 @@ const moveTemporaryImages = async (
 
 export default function UpsertItem() {
   const navigate = useNavigate();
-  const { collectionName, itemId } = useParams();
+  const { collectionName, itemId, ownerUsername } = useParams();
+  const isSharedView = Boolean(ownerUsername);
   const userId = getUserIdFromToken();
   const isEdit = Boolean(itemId);
 
@@ -127,7 +128,9 @@ export default function UpsertItem() {
       try {
         setLoading(true);
         const [collectionRes, itemRes] = await Promise.all([
-          api.get(`/collections/${collectionName}`),
+          isSharedView
+            ? api.get(`/collections/shared/${ownerUsername}/${collectionName}`)
+            : api.get(`/collections/${collectionName}`),
           isEdit ? api.get(`/items/item/${itemId}`) : Promise.resolve({ data: null })
         ]);
 
@@ -238,7 +241,10 @@ export default function UpsertItem() {
         setIsDirty(false);
       } else {
         // Create new item
-        const response = await api.post(`/items/${collectionName}`, { properties: cleanedValues, wishlist: isWishlist, createdAt: newAdded ?? new Date(), });
+        const response = await api.post(
+          isSharedView ? `/items/shared/${ownerUsername}/${collectionName}` : `/items/${collectionName}`,
+          { properties: cleanedValues, wishlist: isWishlist, createdAt: newAdded ?? new Date() }
+        );
         const newItemId = response.data._id;
 
         // Move temporary images
@@ -250,7 +256,7 @@ export default function UpsertItem() {
               duration: 5000,
               action: {
                 label: 'Re-upload',
-                onClick: () => navigate(`/collections/${collectionName}/items/${newItemId}/edit`),
+                onClick: () => navigate(isSharedView ? `/shared/${ownerUsername}/${collectionName}/items/${newItemId}/edit` : `/collections/${collectionName}/items/${newItemId}/edit`),
               },
             });
           }
@@ -277,7 +283,7 @@ export default function UpsertItem() {
           description: 'Your new item has been added to the collection.',
           action: {
             label: 'View',
-            onClick: () => navigate(`/collections/${collectionName}/items/${newItemId}/edit`)
+            onClick: () => navigate(isSharedView ? `/shared/${ownerUsername}/${collectionName}/items/${newItemId}/edit` : `/collections/${collectionName}/items/${newItemId}/edit`)
           }
         });
         setIsDirty(false);
@@ -336,7 +342,7 @@ export default function UpsertItem() {
     try {
       await api.delete(`/items/item/${itemId}`);
       toast.success('Item deleted successfully');
-      navigate(`/collections/${collectionName}`);
+      navigate(isSharedView ? `/shared/${ownerUsername}/${collectionName}` : `/collections/${collectionName}`);
     } catch (err) {
       console.error("Delete failed:", err);
       toast.error('Failed to delete item');

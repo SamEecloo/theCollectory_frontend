@@ -481,10 +481,11 @@ function SwipeableRow({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ViewCollection({ isPublicView = false, isWishlistView = false }: ViewCollectionProps) {
-  const { username, collectionName } = useParams();
+  const { username, collectionName, ownerUsername } = useParams();
+  const isSharedView = Boolean(ownerUsername);
   const navigate = useNavigate();
   const device = useDevice();
-  const storageId = isPublicView ? `public-${collectionName}` : collectionName ?? 'unknown';
+  const storageId = isPublicView ? `public-${collectionName}` : isSharedView ? `shared-${ownerUsername}-${collectionName}` : collectionName ?? 'unknown';
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
   // ─── State ──────────────────────────────────────────────────────────────────
@@ -631,7 +632,9 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
       setInitialLoading(true);
       const collectionUrl = isPublicView
         ? `/collections/${username}/${encodeURIComponent(collectionName || '')}`
-        : `/collections/${collectionName}`;
+        : isSharedView
+          ? `/collections/shared/${ownerUsername}/${encodeURIComponent(collectionName || '')}`
+          : `/collections/${collectionName}`;
       const collectionRes = await api.get(collectionUrl);
 
       if (!collectionRes.data) {
@@ -643,6 +646,8 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
       setCollection(collectionRes.data);
 
       if (isPublicView) {
+        setOwner(collectionRes.data.owner ?? null);
+      } else if (isSharedView) {
         setOwner(collectionRes.data.owner ?? null);
       } else {
         const currentUsername = localStorage.getItem('username');
@@ -670,10 +675,14 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
       const itemsUrl = isWishlistView
         ? (isPublicView && username
             ? `/items/${username}/${collectionName}/wishlist`
-            : `/items/${collectionName}/wishlist`)
+            : isSharedView
+              ? `/items/shared/${ownerUsername}/${collectionName}/wishlist`
+              : `/items/${collectionName}/wishlist`)
         : (isPublicView && username
             ? `/items/${username}/${collectionName}`
-            : `/items/${collectionName}`);
+            : isSharedView
+              ? `/items/shared/${ownerUsername}/${collectionName}`
+              : `/items/${collectionName}`);
 
       const params: Record<string, any> = { ...filterParamsRef.current, page, limit };
 
@@ -697,7 +706,7 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
       setFetching(false);
     }
   }, [
-    isPublicView, isWishlistView, username, collectionName,
+    isPublicView, isWishlistView, username, collectionName, ownerUsername,
     page, limit, fetchTrigger,
     currentSortField, currentSortDirection,
   ]);
@@ -794,6 +803,8 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
 
     if (isPublicView && owner) {
       navigate(`/${owner.username}/${collectionName}/items/${itemId}`);
+    } else if (isSharedView) {
+      navigate(`/shared/${ownerUsername}/${collectionName}/items/${itemId}/edit`);
     } else {
       navigate(`/collections/${collectionName}/items/${itemId}/edit`);
     }
@@ -994,7 +1005,7 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
           <div className="flex items-center gap-2">
             {!isPublicView && (
               <>
-                <Button onClick={() => navigate(`/collections/${collection?.name}/add-item`)}>
+                <Button onClick={() => navigate(isSharedView ? `/shared/${ownerUsername}/${collection?.name}/add-item` : `/collections/${collection?.name}/add-item`)}>
                   <Plus className="h-4 w-4"/>
                   <span className="hidden sm:inline">Add Item</span>
                 </Button>
@@ -1014,12 +1025,16 @@ export default function ViewCollection({ isPublicView = false, isWishlistView = 
                     <DropdownMenuItem onClick={() => navigate(`/collections/${collection?.name}/wishlist`)}>
                       <Heart className="h-4 w-4 mr-2" /> Wishlist
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate(`/collections/${collection?.name}/stats`)}>
-                      <BarChart3 className="h-4 w-4 mr-2" /> Stats
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate(`/collections/${collection?.name}/edit`)}>
-                      <Settings className="h-4 w-4 mr-2" /> Settings
-                    </DropdownMenuItem>
+                    {!isSharedView && (
+                      <DropdownMenuItem onClick={() => navigate(`/collections/${collection?.name}/stats`)}>
+                        <BarChart3 className="h-4 w-4 mr-2" /> Stats
+                      </DropdownMenuItem>
+                    )}
+                    {!isSharedView && (
+                      <DropdownMenuItem onClick={() => navigate(`/collections/${collection?.name}/edit`)}>
+                        <Settings className="h-4 w-4 mr-2" /> Settings
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>

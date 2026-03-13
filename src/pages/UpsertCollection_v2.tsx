@@ -1,5 +1,5 @@
 // src/pages/UpsertCollection_v2.tsx
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 import { GripVertical, AlertCircle, Loader2, Trash, LayoutGrid, Save, Settings2 } from "lucide-react";
@@ -104,6 +104,14 @@ export default function UpsertCollection() {
   const isEdit = Boolean(collectionName);
   const navigate = useNavigate();
 
+  // Contributors
+  const [contributors, setContributors] = useState<{ userId: string; username: string }[]>([]);
+  const [newContributorUsername, setNewContributorUsername] = useState('');
+  const [addingContributor, setAddingContributor] = useState(false);
+  const [friends, setFriends] = useState<{ _id: string; username: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const contributorInputRef = useRef<HTMLDivElement>(null);
+
   // Collection settings
   const [name, setName] = useState("");
   const [originalName, setOriginalName] = useState("");
@@ -163,6 +171,7 @@ export default function UpsertCollection() {
 
         const mapped = (c.config?.fields || []).map(mapApiField);
         setFields(mapped);
+        if (res.data.contributors) setContributors(res.data.contributors);
       } catch {
         navigate("/dashboard");
       }
@@ -306,6 +315,46 @@ export default function UpsertCollection() {
       navigate("/dashboard");
     } catch (err: any) {
       toast.error(err.response?.data?.error || "Failed to save collection");
+    }
+  };
+
+  // ─── Contributors ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!isEdit) return;
+    api.get('/friends').then((r) => setFriends(r.data)).catch(() => {});
+  }, [isEdit]);
+
+  const filteredFriends = friends.filter(
+    (f) =>
+      f.username.toLowerCase().includes(newContributorUsername.toLowerCase()) &&
+      !contributors.some((c) => c.userId === f._id)
+  );
+
+  const handleAddContributor = async (username?: string) => {
+    const name = (username ?? newContributorUsername).trim();
+    if (!name) return;
+    setAddingContributor(true);
+    setShowSuggestions(false);
+    try {
+      const res = await api.post(`/collections/${collectionName}/contributors`, { username: name });
+      setContributors(res.data.contributors);
+      setNewContributorUsername('');
+      toast.success('Contributor added');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to add contributor');
+    } finally {
+      setAddingContributor(false);
+    }
+  };
+
+  const handleRemoveContributor = async (contributorId: string) => {
+    try {
+      const res = await api.delete(`/collections/${collectionName}/contributors/${contributorId}`);
+      setContributors(res.data.contributors);
+      toast.success('Contributor removed');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to remove contributor');
     }
   };
 
@@ -459,6 +508,66 @@ export default function UpsertCollection() {
           </div>
         </CardContent>
       </Card>
+
+      {isEdit && (
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            <Label>Contributors</Label>
+            <p className="text-xs text-muted-foreground">Users who can view and edit items in this collection.</p>
+            {contributors.map((c) => (
+              <div key={c.userId} className="flex items-center justify-between rounded border px-3 py-2">
+                <span className="text-sm">{c.username}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => handleRemoveContributor(c.userId)}
+                >
+                  <Trash className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <div ref={contributorInputRef} className="relative flex-1">
+                <Input
+                  placeholder="Search friends…"
+                  value={newContributorUsername}
+                  onChange={(e) => { setNewContributorUsername(e.target.value); setShowSuggestions(true); }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddContributor(); } }}
+                  className="text-sm"
+                />
+                {showSuggestions && filteredFriends.length > 0 && (
+                  <div className="absolute z-50 top-full mt-1 w-full rounded-md border bg-popover shadow-md">
+                    {filteredFriends.map((f) => (
+                      <button
+                        key={f._id}
+                        type="button"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                        onMouseDown={(e) => { e.preventDefault(); handleAddContributor(f.username); }}
+                      >
+                        {f.username}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleAddContributor()}
+                disabled={addingContributor || !newContributorUsername.trim()}
+              >
+                {addingContributor ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Field settings dialog ── */}
       {editingField && (
         <FieldDialog

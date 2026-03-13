@@ -11,7 +11,7 @@ type Field = {
   _id: string;
   short: string;
   long: string;
-  type: "text" | "number" | "checkbox" | "dropdown" | "textarea" | "tags" | "image";
+  type: "text" | "number" | "checkbox" | "dropdown" | "textarea" | "tags" | "image" | "date";
   options?: DropdownOption[];
   isActive?: boolean;
   isPublic?: boolean;
@@ -105,6 +105,16 @@ export default function ViewItem() {
                       displayValue = (
                         <div className="whitespace-pre-wrap">{val || "-"}</div>
                       );
+                    } else if (f.type === "date") {
+                      if (val) {
+                        const d = new Date(val);
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        displayValue = `${year}-${month}-${day}`;
+                      } else {
+                        displayValue = "-";
+                      }
                     }
 
                     return (

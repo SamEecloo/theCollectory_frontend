@@ -23,6 +23,7 @@ interface Collection {
   isActive: boolean;
   createdAt: string;
   itemCount?: number;
+  owner?: { username: string };
 }
 
 export default function Dashboard() {
@@ -30,6 +31,7 @@ export default function Dashboard() {
   const username = localStorage.getItem('username');
 
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [sharedCollections, setSharedCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -37,6 +39,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchCollections();
+    fetchSharedCollections();
   }, []);
 
   const fetchCollections = async () => {
@@ -49,6 +52,15 @@ export default function Dashboard() {
       toast.error("Failed to load collections");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSharedCollections = async () => {
+    try {
+      const res = await api.get('/collections/shared-with-me');
+      setSharedCollections(res.data);
+    } catch (err) {
+      console.error('Failed to fetch shared collections:', err);
     }
   };
 
@@ -211,6 +223,33 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {sharedCollections.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl">Shared with me</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sharedCollections.map((col) => (
+              <Card
+                key={col._id}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/shared/${col.owner?.username}/${col.name}`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg">{col.name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {col.itemCount !== undefined ? `${col.itemCount} item${col.itemCount !== 1 ? 's' : ''}` : ''}
+                    </span>
+                    <span className="text-xs text-muted-foreground">by {col.owner?.username}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
