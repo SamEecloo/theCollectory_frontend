@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
-import { GripVertical, AlertCircle, Loader2, Trash, LayoutGrid, Save, Settings2 } from "lucide-react";
+import { GripVertical, AlertCircle, Loader2, Trash, LayoutGrid, Save, Settings2, TriangleAlert, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -40,6 +40,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { FIELD_TYPES } from "@/constants/fieldTypes";
+import { COLLECTION_TEMPLATES, applyTemplate } from "@/constants/collectionTemplates";
+import type { CollectionTemplate } from "@/constants/collectionTemplates";
+import type { IGridRowItem, ILayoutConfig } from "@/types/collection";
 import api from "@/lib/api";
 
 // ─── Local types ──────────────────────────────────────────────────────────────
@@ -104,7 +107,15 @@ export default function UpsertCollection() {
   const isEdit = Boolean(collectionName);
   const navigate = useNavigate();
 
+  // Template picker (only shown when creating a new collection)
+  const [templateChosen, setTemplateChosen] = useState(isEdit);
+  const [templateLayout, setTemplateLayout] = useState<{
+    gridRows: IGridRowItem[];
+    layoutConfig: Partial<ILayoutConfig>;
+  } | null>(null);
+
   // Contributors
+  const [contributorsOpen, setContributorsOpen] = useState(false);
   const [contributors, setContributors] = useState<{ userId: string; username: string }[]>([]);
   const [newContributorUsername, setNewContributorUsername] = useState('');
   const [addingContributor, setAddingContributor] = useState(false);
@@ -129,6 +140,9 @@ export default function UpsertCollection() {
   // Sorting
   const [defaultSortField, setDefaultSortField] = useState("");
   const [defaultSortDirection, setDefaultSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Dirty tracking (edit mode only) — snapshot of last saved state
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
   // DnD
   const sensors = useSensors(
@@ -172,6 +186,16 @@ export default function UpsertCollection() {
         const mapped = (c.config?.fields || []).map(mapApiField);
         setFields(mapped);
         if (res.data.contributors) setContributors(res.data.contributors);
+
+        // Snapshot for dirty tracking
+        setSavedSnapshot(JSON.stringify({
+          name: c.name || "",
+          isPublic: Boolean(c.isPublic),
+          isActive: Boolean(c.isActive),
+          fields: mapped,
+          defaultSortField: c.config?.defaultSort?.fieldId || "",
+          defaultSortDirection: c.config?.defaultSort?.direction || "asc",
+        }));
       } catch {
         navigate("/dashboard");
       }
@@ -280,6 +304,9 @@ export default function UpsertCollection() {
     [name, isPublic, isActive, fields, defaultSortField, defaultSortDirection]
   );
 
+  const isDirty = isEdit && savedSnapshot !== null &&
+    JSON.stringify({ name, isPublic, isActive, fields, defaultSortField, defaultSortDirection }) !== savedSnapshot;
+
   const isFormValid = () => {
     if (!name.trim()) return false;
     if (nameExists) return false;
@@ -308,8 +335,13 @@ export default function UpsertCollection() {
         };
         await api.put(`/collections/${collectionName}`, updatedPayload);
         toast.success("Collection updated successfully!");
+        setSavedSnapshot(JSON.stringify({ name, isPublic, isActive, fields, defaultSortField, defaultSortDirection }));
+        return;
       } else {
-        await api.post("/collections", payload);
+        const createPayload = templateLayout
+          ? { ...payload, config: { ...payload.config, layout: { ...templateLayout.layoutConfig, gridRows: templateLayout.gridRows } } }
+          : payload;
+        await api.post("/collections", createPayload);
         toast.success("Collection created successfully!");
       }
       navigate("/dashboard");
@@ -364,6 +396,22 @@ export default function UpsertCollection() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
+  if (!isEdit && !templateChosen) {
+    return (
+      <TemplatePicker
+        onSelect={(template) => {
+          const result = applyTemplate(template);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          setFields(result.fields.map(({ templateId, ...f }) => f));
+          setEditingFieldId(null);
+          setTemplateLayout({ gridRows: result.gridRows, layoutConfig: result.layoutConfig });
+          setTemplateChosen(true);
+        }}
+        onScratch={() => setTemplateChosen(true)}
+      />
+    );
+  }
+
   return (
     <div className="py-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between px-4 sm:px-0">
@@ -377,7 +425,7 @@ export default function UpsertCollection() {
             <LayoutGrid className="h-4 w-4" />
             <span className="hidden sm:inline">Grid Layout</span>
           </Button>
-          <Button type="button" onClick={handleSave} disabled={!isFormValid()}>
+          <Button type="button" onClick={handleSave} disabled={!isFormValid() || (isEdit && !isDirty)}>
             <Save className="h-4 w-4" />
             <span className="hidden sm:inline">{isEdit ? "Update" : "Save"}</span>
           </Button>
@@ -385,7 +433,7 @@ export default function UpsertCollection() {
       </div>
 
       <Card>
-        <CardContent className="p-6 space-y-6">
+        <CardContent className="px-6 space-y-3">
 
           {/* ── Collection Settings ── */}
           <div className="grid gap-4 md:grid-cols-2">
@@ -412,9 +460,7 @@ export default function UpsertCollection() {
             </div>
 
             {/* Checkboxes */}
-            <div className="space-y-2">
-              <Label>Options</Label>
-              <div className="flex gap-6 h-10 items-center">
+              <div className="flex gap-6 h-3 items-center">
                 <div className="flex items-center gap-3">
                   <Checkbox
                     id="isPublic"
@@ -432,10 +478,9 @@ export default function UpsertCollection() {
                   <Label htmlFor="isActive">Active</Label>
                 </div>
               </div>
-            </div>
 
             {/* Default Sort Field */}
-            <div className="space-y-2">
+            <div>
               <Label>Default Sort Field</Label>
               <Select
                 value={defaultSortField || "__none__"}
@@ -511,8 +556,21 @@ export default function UpsertCollection() {
 
       {isEdit && (
         <Card>
-          <CardContent className="pt-6 space-y-3">
-            <Label>Contributors</Label>
+          <CardContent className="px-6 space-y-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between"
+              onClick={() => setContributorsOpen(o => !o)}
+            >
+              <Label className="cursor-pointer">
+                Contributors
+                {contributors.length > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground">({contributors.length})</span>
+                )}
+              </Label>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${contributorsOpen ? "rotate-180" : ""}`} />
+            </button>
+            {contributorsOpen && <>
             <p className="text-xs text-muted-foreground">Users who can view and edit items in this collection.</p>
             {contributors.map((c) => (
               <div key={c.userId} className="flex items-center justify-between rounded border px-3 py-2">
@@ -564,6 +622,7 @@ export default function UpsertCollection() {
                 {addingContributor ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}
               </Button>
             </div>
+            </>}
           </CardContent>
         </Card>
       )}
@@ -578,6 +637,13 @@ export default function UpsertCollection() {
           onChangeOption={(i, key, val) => updateOption(editingField._id, i, key, val)}
           onRemoveOption={(i) => removeOption(editingField._id, i)}
         />
+      )}
+
+      {isDirty && (
+        <div className="flex items-center gap-2 px-4 sm:px-0 text-sm text-muted-foreground">
+          <TriangleAlert className="h-4 w-4 text-yellow-500" />
+          <span>Unsaved changes</span>
+        </div>
       )}
     </div>
   );
@@ -833,5 +899,49 @@ function FieldDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── TemplatePicker ───────────────────────────────────────────────────────────
+
+function TemplatePicker({
+  onSelect,
+  onScratch,
+}: {
+  onSelect: (template: CollectionTemplate) => void;
+  onScratch: () => void;
+}) {
+  return (
+    <div className="py-4 sm:p-6 space-y-4">
+      <div className="px-4 sm:px-0 space-y-1">
+        <h1 className="text-2xl">New Collection</h1>
+        <p className="text-sm text-muted-foreground">Choose a template to get started, or build your own.</p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-4 sm:px-0">
+        {COLLECTION_TEMPLATES.map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            onClick={() => onSelect(template)}
+            className="flex flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left hover:border-primary/60 hover:bg-muted/40 transition-all shadow-sm"
+          >
+            <span className="text-3xl">{template.emoji}</span>
+            <span className="text-sm font-semibold">{template.name}</span>
+            <span className="text-xs text-muted-foreground leading-snug">{template.description}</span>
+          </button>
+        ))}
+
+        <button
+          type="button"
+          onClick={onScratch}
+          className="flex flex-col items-start gap-2 rounded-xl border border-dashed bg-card p-4 text-left hover:border-primary/60 hover:bg-muted/40 transition-all shadow-sm"
+        >
+          <span className="text-3xl">✏️</span>
+          <span className="text-sm font-semibold">Start from scratch</span>
+          <span className="text-xs text-muted-foreground leading-snug">Build your collection fields manually</span>
+        </button>
+      </div>
+    </div>
   );
 }

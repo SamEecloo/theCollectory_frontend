@@ -58,12 +58,14 @@ export default function PublicDashboard() {
   }
   if (username){
     return (
-      <div className="p-6 space-y-4">
-        <div className="mb-6">
+      <div className="py-4 px-0 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between mb-6 px-4 sm:px-0">
           <h1 className="text-2xl">{username}'s Collections</h1>
+          
+        </div>
+        <div className="px-4 sm:px-0">
           <AddFriendButton profileUsername={username} />
         </div>
-
         {collections.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">This user has no public collections.</p>

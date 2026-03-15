@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useTheme } from "@/context/theme-context";
-import { LogOut, User, Home, Menu, Sun, Moon, MessageCircle, Bell } from "lucide-react";
+import { LogOut, User, Home, Menu, Sun, Moon, MessageCircle, Bell, Users } from "lucide-react";
 import { AuthProvider } from "@/context/AuthContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
@@ -132,6 +132,13 @@ function AppLayoutInner() {
                             {counts.notifications > 99 ? "99+" : counts.notifications}
                           </span>
                         )}
+                      </button>
+
+                      <button
+                        onClick={() => go('/friends')}
+                        className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+                      >
+                        <Users className="h-4 w-4" /> Friends
                       </button>
 
                       <button

@@ -303,19 +303,19 @@ export default function Statistics() {
   return (
     <div className="py-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-4 sm:px-0">
         <div>
-          <h1 className="text-3xl font-bold">{collection?.name} Statistics</h1>
-          <p className="text-muted-foreground mt-1">
-            Overview of activity in this collection
+          <h1 className="text-2xl">{collection?.name} Statistics</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Add widgets to track your activity
           </p>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Widget
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add Widget</span>
             </Button>
           </DialogTrigger>
           <DialogContent>

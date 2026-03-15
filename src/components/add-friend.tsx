@@ -74,12 +74,15 @@ export function AddFriendButton({ profileUsername }: Props) {
     <div className="flex items-center gap-2">
       {status === "none" && (
         <Button size="sm" onClick={sendRequest} disabled={busy}>
-          <UserPlus className="h-4 w-4 mr-1.5" /> Add Friend
+          <UserPlus className="h-4 w-4 mr-1.5" />
+           <span className="hidden sm:inline">Add Friend</span>
         </Button>
       )}
       {status === "pending_sent" && (
         <Button size="sm" variant="outline" disabled>
-          <Clock className="h-4 w-4 mr-1.5" /> Request Sent
+          <Clock className="h-4 w-4 mr-1.5" /> 
+          <span className="hidden sm:inline">Request Sent</span>
+          
         </Button>
       )}
       {status === "pending_received" && (
@@ -95,10 +98,12 @@ export function AddFriendButton({ profileUsername }: Props) {
       {status === "accepted" && (
         <>
           <Button size="sm" variant="outline" disabled>
-            <UserCheck className="h-4 w-4 mr-1.5" /> Friends
+            <UserCheck className="h-4 w-4 ml-1 mr-1.5" /> 
+            <span className="hidden sm:inline">Friends</span>
           </Button>
           <Button size="sm" variant="ghost" onClick={startChat} disabled={busy}>
-            <MessageCircle className="h-4 w-4 mr-1.5" /> Message
+            <MessageCircle className="h-4 w-4 mr-1.5" /> 
+            <span className="hidden sm:inline">Message</span>
           </Button>
         </>
       )}

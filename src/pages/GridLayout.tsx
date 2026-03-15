@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import GridLayoutEditor from "@/components/grid-layout-editor_v2";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, TriangleAlert } from "lucide-react";
 import { type IGridRowItem, type ILayoutConfig, DEFAULT_LAYOUT } from "@/types";
 import api from "@/lib/api";
 
@@ -34,6 +34,7 @@ export default function GridLayout() {
     })()
   );
   const [loading, setLoading] = useState(true);
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
   // Load collection
   useEffect(() => {
@@ -48,11 +49,15 @@ export default function GridLayout() {
         const c = res.data;
 
         setFields((c.config?.fields || []).filter((f: Field) => f.useInGrid !== false));
-        setGridRows(c.config?.layout?.gridRows ?? []);
+        const loadedRows = c.config?.layout?.gridRows ?? [];
+        setGridRows(loadedRows);
 
         if (c.config?.layout) {
           const { gridRows: _omit, ...rest } = c.config.layout;
           setLayoutConfig(rest);
+          setSavedSnapshot(JSON.stringify({ gridRows: loadedRows, layoutConfig: rest }));
+        } else {
+          setSavedSnapshot(JSON.stringify({ gridRows: loadedRows, layoutConfig }));
         }
 
         setLoading(false);
@@ -83,11 +88,15 @@ export default function GridLayout() {
 
       await api.put(`/collections/${collectionName}`, updatedPayload);
       toast.success("Grid layout saved successfully!");
+      setSavedSnapshot(JSON.stringify({ gridRows, layoutConfig }));
       navigate(`/collections/${collectionName}/edit`);
     } catch (err: any) {
       toast.error(err.response?.data?.error || "Failed to save grid layout");
     }
   };
+
+  const isDirty = savedSnapshot !== null &&
+    JSON.stringify({ gridRows, layoutConfig }) !== savedSnapshot;
 
   if (loading) {
     return (
@@ -112,9 +121,10 @@ export default function GridLayout() {
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">Cancel</span>
           </Button>
-          <Button 
+          <Button
             type="button"
             onClick={handleSave}
+            disabled={!isDirty}
           >
             <Save className="h-4 w-4" />
             <span className="hidden sm:inline">Save</span>
@@ -126,6 +136,13 @@ export default function GridLayout() {
         gridRows={gridRows}
         onChange={setGridRows}
       />
+
+      {isDirty && (
+        <div className="flex items-center gap-2 px-4 sm:px-0 text-sm text-muted-foreground">
+          <TriangleAlert className="h-4 w-4 text-yellow-500" />
+          <span>Unsaved changes</span>
+        </div>
+      )}
     </div>
   );
 }

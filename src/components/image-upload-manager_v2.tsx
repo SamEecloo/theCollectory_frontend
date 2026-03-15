@@ -755,7 +755,7 @@ export default function ImageUploadManager({
               src={activeImage.url}
               thumbnailSrc={activeImage.thumbnailUrl}
               alt={activeImage.filename}
-              className="w-full h-full object-contain cursor-zoom-in"
+              className="w-full h-full object-cover cursor-zoom-in"
               onClick={() => setZoomImageUrl(`${BACKEND_URL}${activeImage.url}`)}
             />
             <Button
@@ -835,7 +835,7 @@ export default function ImageUploadManager({
                 src={activeImage.url}
                 thumbnailSrc={activeImage.thumbnailUrl}
                 alt={activeImage.filename}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
 
               {activeImage.id === mainImageId && (

@@ -1,7 +1,7 @@
 // src/pages/UpsertItem.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useBlocker  } from "react-router-dom";
-import { Trash2, Loader2, Heart, Sparkles } from "lucide-react";
+import { Save, Trash2, Loader2, Heart, Sparkles, TriangleAlert } from "lucide-react";
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,7 +106,9 @@ export default function UpsertItem() {
   const [isDirty, setIsDirty] = useState(false);
   const [values, setValues] = useState<Record<string, any>>({});
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [lastUpdatedBy, setLastUpdatedBy] = useState<string | null>(null);
   const [newAdded, setNewAdded] = useState<Date | undefined>(undefined);
+  const [addedBy, setAddedBy] = useState<string | null>(null);
   const [pendingDate, setPendingDate] = useState<Date | undefined>(undefined);
   const [imageKey, setImageKey] = useState(0);
   const [pendingImageDeletions, setPendingImageDeletions] = useState<string[]>([]);
@@ -144,8 +146,14 @@ export default function UpsertItem() {
           if (itemRes.data.updatedAt) {
             setLastUpdated(new Date(itemRes.data.updatedAt));
           }
+          if (itemRes.data.updatedBy?.username) {
+            setLastUpdatedBy(itemRes.data.updatedBy.username);
+          }
           if (itemRes.data.createdAt) {
             setNewAdded(new Date(itemRes.data.createdAt));
+          }
+          if (itemRes.data.createdBy?.username) {
+            setAddedBy(itemRes.data.createdBy.username);
           }
         } else {
           // Creating new item - apply filter defaults
@@ -219,8 +227,9 @@ export default function UpsertItem() {
 
       if (isEdit && itemId) {
         // Update existing item
-        await api.put(`/items/item/${itemId}`, { properties: cleanedValues, wishlist: isWishlist, ...(newAdded && { createdAt: newAdded }), });
-        setLastUpdated(new Date());
+        const updateRes = await api.put(`/items/item/${itemId}`, { properties: cleanedValues, wishlist: isWishlist, ...(newAdded && { createdAt: newAdded }), });
+        setLastUpdated(new Date(updateRes.data.updatedAt ?? new Date()));
+        if (updateRes.data.updatedBy?.username) setLastUpdatedBy(updateRes.data.updatedBy.username);
 
         // Handle pending image deletions
         if (pendingImageDeletions.length > 0 && userId) {
@@ -543,7 +552,9 @@ export default function UpsertItem() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-2 pt-4 border-t">
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving || (isEdit && !isDirty)}>
+                <Save className="h-4 w-4" />
+                <span className="hidden sm:inline text-sm">
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -552,18 +563,20 @@ export default function UpsertItem() {
                 ) : (
                   isEdit ? "Update Item" : "Save Item"
                 )}
+                </span>
               </Button>
               {isDirty && (
-                <span className="text-sm text-muted-foreground italic">
-                  Unsaved changes
+                <span className="flex items-center gap-2 text-sm text-muted-foreground" title="Unsaved changes">
+                  <TriangleAlert className="h-4 w-4 text-yellow-500" />
+                  <span className="hidden sm:inline">Unsaved changes</span>
                 </span>
               )}
               {isEdit && (
                 <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                   <AlertDialogTrigger asChild>
                     <Button type="button" variant="destructive" className="ml-auto">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
+                      <Trash2 className="h-4 w-4" />
+                      <span className="hidden sm:inline text-sm">Delete</span>
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -643,20 +656,22 @@ export default function UpsertItem() {
       </Card>
       <div className="flex items-center justify-between">
         {lastUpdated && isEdit && (
-          <span className="text-sm text-muted-foreground mt-1 ml-4">
-            Updated {getRelativeTime(lastUpdated)}
-          </span> 
+          <div className="flex flex-col mt-1 ml-4">
+            <span className="text-sm text-muted-foreground">Updated {getRelativeTime(lastUpdated)}</span>
+            {lastUpdatedBy && <span className="text-xs text-muted-foreground/70">by {lastUpdatedBy}</span>}
+          </div>
         )}
         {newAdded && isEdit && (
-          <span
-            className="text-sm text-muted-foreground mt-1 mr-4 cursor-pointer"
+          <div
+            className="flex flex-col mt-1 mr-4 cursor-pointer items-end"
             onClick={() => {
-              setPendingDate(newAdded); // pre-fill with current value
+              setPendingDate(newAdded);
               setShowDateDialog(true);
             }}
           >
-            Added {getRelativeTime(newAdded)}
-          </span>
+            <span className="text-sm text-muted-foreground">Added {getRelativeTime(newAdded)}</span>
+            {addedBy && <span className="text-xs text-muted-foreground/70">by {addedBy}</span>}
+          </div>
         )}
       </div>
       {/* Debug JSON */}

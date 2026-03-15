@@ -18,6 +18,7 @@ import GridLayout from "@/pages/GridLayout";
 import ComingSoon from '@/pages/ComingSoon';
 import Notifications from "@/pages/Notifications";
 import Messages from "@/pages/Messages";
+import Friends from "@/pages/Friends";
 import { AuthProvider } from './context/AuthContext';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
             { path: '/notifications', element: <ProtectedRoute><Notifications /></ProtectedRoute> },
             { path: '/messages', element: <ProtectedRoute><Messages /></ProtectedRoute> },
             { path: '/messages/:conversationId', element: <ProtectedRoute><Messages /></ProtectedRoute> },
+            { path: '/friends', element: <ProtectedRoute><Friends /></ProtectedRoute> },
             { path: '/statistics', element: <ProtectedRoute><Statistics /></ProtectedRoute> },
             { path: '/collections', element: <ProtectedRoute><Dashboard /></ProtectedRoute> },
             { path: '/collections/new', element: <ProtectedRoute><UpsertCollection /></ProtectedRoute> },

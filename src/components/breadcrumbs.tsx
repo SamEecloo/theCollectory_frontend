@@ -15,6 +15,33 @@ export function Breadcrumbs() {
     { label: 'Home', path: '/dashboard' }
   ];
 
+  // Handle /messages and /messages/:id
+  if (pathSegments[0] === 'messages') {
+    breadcrumbs.push({ label: 'Messages', path: '/messages' });
+    if (pathSegments[1]) {
+      const name = (location.state as any)?.conversationName;
+      if (name) breadcrumbs.push({ label: name, path: `/messages/${pathSegments[1]}` });
+    }
+    return (
+      <nav className="flex items-center space-x-2 text-sm text-muted-foreground">
+        {breadcrumbs.map((crumb, index) => (
+          <div key={crumb.path} className="flex items-center">
+            {index > 0 && <ChevronRight className="h-4 w-4 mx-2" />}
+            {index === 0 ? (
+              <Link to={crumb.path} className="flex items-center hover:text-foreground transition-colors">
+                <Home className="h-4 w-4" />
+              </Link>
+            ) : index === breadcrumbs.length - 1 ? (
+              <span className="text-foreground font-medium">{crumb.label}</span>
+            ) : (
+              <Link to={crumb.path} className="hover:text-foreground transition-colors">{crumb.label}</Link>
+            )}
+          </div>
+        ))}
+      </nav>
+    );
+  }
+
   // Handle different route patterns
   if (pathSegments.length >= 2) {
     const username = pathSegments[0];

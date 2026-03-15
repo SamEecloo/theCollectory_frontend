@@ -107,9 +107,9 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="py-4 px-0 sm:p-6 space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
         <h1 className="text-2xl">My Collections</h1>
         <Button onClick={() => navigate("/collections/new")}>
           <Plus className="w-4 h-4" />

@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Loader2,
   SkipForward,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,7 +60,12 @@ export interface ImportResult {
 
 // ─── Steps ───────────────────────────────────────────────────────────────────
 
-const STEPS = ["Upload CSV", "Map Columns", "Preview", "Import"];
+// Internal step indices (resolve step may be skipped in navigation)
+const STEP_UPLOAD   = 0;
+const STEP_MAP      = 1;
+const STEP_RESOLVE  = 2;
+const STEP_PREVIEW  = 3;
+const STEP_IMPORT   = 4;
 
 // ─── CSV Parser ───────────────────────────────────────────────────────────────
 
@@ -162,31 +168,65 @@ function isUnresolvedDropdown(field: FieldConfig, raw: string, matchKey: Dropdow
   );
 }
 
+// Returns a map of fieldId → sorted list of unique unresolved values
+function getUnresolvedByField(
+  rows: Record<string, string>[],
+  mappings: ColumnMapping[],
+  fields: FieldConfig[]
+): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+  for (const m of mappings) {
+    if (m.fieldId === "skip") continue;
+    const field = fields.find((f) => f._id === m.fieldId);
+    if (!field || field.type !== "dropdown") continue;
+    const unknownValues = new Set<string>();
+    for (const row of rows) {
+      const raw = row[m.csvColumn]?.trim();
+      if (raw && isUnresolvedDropdown(field, raw, m.dropdownMatchKey ?? "long")) {
+        unknownValues.add(raw);
+      }
+    }
+    if (unknownValues.size > 0) {
+      result.set(field._id, Array.from(unknownValues).sort());
+    }
+  }
+  return result;
+}
+
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({ current, hasResolveStep }: { current: number; hasResolveStep: boolean }) {
+  const labels = hasResolveStep
+    ? ["Upload CSV", "Map Columns", "New Options", "Preview", "Import"]
+    : ["Upload CSV", "Map Columns", "Preview", "Import"];
+
+  // Map internal step to display index
+  const displayIndex = hasResolveStep
+    ? current
+    : current >= STEP_PREVIEW ? current - 1 : current;
+
   return (
     <div className="flex items-center justify-center gap-2 mb-8">
-      {STEPS.map((label, i) => (
+      {labels.map((label, i) => (
         <div key={i} className="flex items-center gap-2">
           <div className="flex flex-col items-center">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                i < current
+                i < displayIndex
                   ? "bg-primary text-primary-foreground"
-                  : i === current
+                  : i === displayIndex
                   ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2"
                   : "bg-muted text-muted-foreground"
               }`}
             >
-              {i < current ? <Check className="w-4 h-4" /> : i + 1}
+              {i < displayIndex ? <Check className="w-4 h-4" /> : i + 1}
             </div>
-            <span className={`text-xs mt-1 hidden sm:block ${i === current ? "text-primary font-medium" : "text-muted-foreground"}`}>
+            <span className={`text-xs mt-1 hidden sm:block ${i === displayIndex ? "text-primary font-medium" : "text-muted-foreground"}`}>
               {label}
             </span>
           </div>
-          {i < STEPS.length - 1 && (
-            <div className={`h-px w-8 sm:w-16 mb-4 transition-colors ${i < current ? "bg-primary" : "bg-muted"}`} />
+          {i < labels.length - 1 && (
+            <div className={`h-px w-8 sm:w-16 mb-4 transition-colors ${i < displayIndex ? "bg-primary" : "bg-muted"}`} />
           )}
         </div>
       ))}
@@ -213,7 +253,6 @@ function UploadStep({
     if (headers.length === 0) { setError("CSV appears to be empty."); return; }
     if (rows.length === 0) { setError("CSV has no data rows."); return; }
     setError(null);
-    console.log(`[ImportCSV] Parsed: ${rows.length} rows, ${headers.length} columns`, { headers, firstRowIsHeader: isHeader });
     onParsed(headers, rows);
   };
 
@@ -224,7 +263,6 @@ function UploadStep({
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      console.log(`[ImportCSV] File selected: "${file.name}" (${(file.size / 1024).toFixed(1)} KB)`);
       setRawText(text);
       process(text, firstRowIsHeader);
     };
@@ -427,7 +465,181 @@ function MapStep({
   );
 }
 
-// ─── Step 3: Preview ──────────────────────────────────────────────────────────
+// ─── Step 3: Resolve New Dropdown Options ─────────────────────────────────────
+
+function ResolveStep({
+  unresolvedByField,
+  fields,
+  collectionName,
+  onResolved,
+}: {
+  unresolvedByField: Map<string, string[]>;
+  fields: FieldConfig[];
+  collectionName: string;
+  onResolved: (updatedFields: FieldConfig[]) => void;
+}) {
+  // selected: fieldId → Set of values to add
+  const [selected, setSelected] = useState<Map<string, Set<string>>>(() => {
+    const m = new Map<string, Set<string>>();
+    for (const [fieldId, values] of unresolvedByField) {
+      m.set(fieldId, new Set(values)); // all checked by default
+    }
+    return m;
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = (fieldId: string, value: string) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      const set = new Set(next.get(fieldId) ?? []);
+      if (set.has(value)) set.delete(value);
+      else set.add(value);
+      next.set(fieldId, set);
+      return next;
+    });
+  };
+
+  const toggleAll = (fieldId: string, values: string[]) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      const set = next.get(fieldId) ?? new Set<string>();
+      const allChecked = values.every((v) => set.has(v));
+      next.set(fieldId, allChecked ? new Set() : new Set(values));
+      return next;
+    });
+  };
+
+  const totalSelected = Array.from(selected.values()).reduce((acc, s) => acc + s.size, 0);
+
+  const handleAdd = async () => {
+    if (totalSelected === 0) {
+      onResolved(fields);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch current collection to get full config
+      const res = await api.get(`/collections/${collectionName}`);
+      const collection = res.data;
+
+      const configFields: FieldConfig[] = collection.config?.fields ?? [];
+
+      const updatedConfigFields = configFields.map((field: FieldConfig) => {
+        const toAdd = selected.get(field._id);
+        if (!toAdd || toAdd.size === 0) return field;
+        const existingOpts = field.options ?? field.dropdownOptions ?? [];
+        // No _id — Mongoose will auto-generate valid ObjectIds for new subdocuments
+        const newOpts = Array.from(toAdd).map((val) => ({ short: val, long: val }));
+        // Preserve whichever key the field already uses
+        if (field.dropdownOptions !== undefined) {
+          return { ...field, dropdownOptions: [...existingOpts, ...newOpts] };
+        }
+        return { ...field, options: [...existingOpts, ...newOpts] };
+      });
+
+      // Only send what updateCollection actually reads
+      await api.put(`/collections/${collectionName}`, {
+        name: collection.name,
+        isPublic: collection.isPublic,
+        isActive: collection.isActive,
+        config: { ...collection.config, fields: updatedConfigFields },
+      });
+
+      // Re-fetch so we get Mongoose-generated _id values on the new options
+      const refreshed = await api.get(`/collections/${collectionName}`);
+      const refreshedFields: FieldConfig[] = refreshed.data?.config?.fields ?? updatedConfigFields;
+
+      // Merge the refreshed fields (with real _ids) into localFields for the import step
+      const mergedFields = fields.map((f) => {
+        const updated = refreshedFields.find((u) => u._id === f._id);
+        return updated ?? f;
+      });
+
+      onResolved(mergedFields);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string; message?: string } } };
+      setError(
+        err.response?.data?.error ??
+        err.response?.data?.message ??
+        "Failed to update dropdown options"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-2xl mx-auto flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        The following values from your CSV aren't in the dropdown options yet. Select the ones you'd
+        like to add — unselected values will still be imported as raw text.
+      </p>
+
+      {Array.from(unresolvedByField.entries()).map(([fieldId, values]) => {
+        const field = fields.find((f) => f._id === fieldId);
+        if (!field) return null;
+        const fieldSelected = selected.get(fieldId) ?? new Set<string>();
+        const allChecked = values.every((v) => fieldSelected.has(v));
+
+        return (
+          <div key={fieldId} className="rounded-lg border overflow-hidden">
+            <label className="flex items-center gap-3 px-4 py-2.5 bg-muted/50 border-b cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allChecked}
+                onChange={() => toggleAll(fieldId, values)}
+                className="h-4 w-4 rounded"
+              />
+              <span className="font-medium text-sm">{field.long}</span>
+              <Badge variant="outline" className="text-xs">dropdown</Badge>
+              <span className="ml-auto text-xs text-muted-foreground">
+                {fieldSelected.size}/{values.length} selected
+              </span>
+            </label>
+            <div className="divide-y">
+              {values.map((val) => (
+                <label
+                  key={val}
+                  className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={fieldSelected.has(val)}
+                    onChange={() => toggle(fieldId, val)}
+                    className="h-4 w-4 rounded"
+                  />
+                  <span className="text-sm">{val}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <Button onClick={handleAdd} disabled={loading} className="self-start">
+        {loading ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        ) : (
+          <Plus className="w-4 h-4 mr-2" />
+        )}
+        {totalSelected > 0
+          ? `Add ${totalSelected} option${totalSelected !== 1 ? "s" : ""} & continue`
+          : "Skip & continue"}
+      </Button>
+    </div>
+  );
+}
+
+// ─── Step 4: Preview ──────────────────────────────────────────────────────────
 
 function PreviewStep({
   rows,
@@ -504,14 +716,13 @@ function PreviewStep({
   );
 }
 
-// ─── Step 4: Import ───────────────────────────────────────────────────────────
+// ─── Step 5: Import ───────────────────────────────────────────────────────────
 
 function ImportStep({
   rows,
   mappings,
   fields,
   collectionName,
-  collectionId,
   onDone,
 }: {
   rows: Record<string, string>[];
@@ -531,12 +742,6 @@ function ImportStep({
     const errors: { row: number; message: string }[] = [];
     let imported = 0;
 
-    console.log(`[ImportCSV] Starting import: ${rows.length} rows → collection "${collectionId}"`);
-    console.log(`[ImportCSV] Active mappings:`, activeMappings.map((m) => {
-      const field = fields.find((f) => f._id === m.fieldId);
-      return `"${m.csvColumn}" → ${field?.long ?? m.fieldId}${field?.type === "dropdown" ? ` (${m.dropdownMatchKey})` : ""}`;
-    }));
-
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const properties: Record<string, unknown> = {};
@@ -549,13 +754,11 @@ function ImportStep({
 
       try {
         await api.post(`/items/${collectionName}`, { properties });
-        console.log(`[ImportCSV] Row ${i + 1}/${rows.length} ✓`, properties);
         imported++;
       } catch (e: unknown) {
         const msg =
           (e as { response?: { data?: { message?: string } } })?.response?.data?.message ??
           "Unknown error";
-        console.warn(`[ImportCSV] Row ${i + 1}/${rows.length} ✗ — ${msg}`, properties);
         errors.push({ row: i + 1, message: msg });
       }
 
@@ -563,7 +766,6 @@ function ImportStep({
     }
 
     const res: ImportResult = { total: rows.length, imported, failed: errors.length, errors };
-    console.log(`[ImportCSV] Import complete — ${imported} succeeded, ${errors.length} failed`, res);
     setResult(res);
     setStatus("done");
     onDone(res);
@@ -636,24 +838,57 @@ interface ImportCSVProps {
 }
 
 export default function ImportCSV({ collectionName, collectionId, fields, onClose, onComplete }: ImportCSVProps) {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(STEP_UPLOAD);
   const [csvRows, setCsvRows] = useState<Record<string, string>[]>([]);
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  // localFields may be updated after the resolve step adds new dropdown options
+  const [localFields, setLocalFields] = useState<FieldConfig[]>(fields);
+  const [unresolvedByField, setUnresolvedByField] = useState<Map<string, string[]>>(new Map());
+  const [hasResolveStep, setHasResolveStep] = useState(false);
 
   const handleParsed = (headers: string[], rows: Record<string, string>[]) => {
     setCsvRows(rows);
-    const mapped = autoMap(headers, fields);
-    const autoMapped = mapped.filter((m) => m.fieldId !== "skip");
-    console.log(`[ImportCSV] Auto-mapped ${autoMapped.length}/${headers.length} columns`, mapped);
+    const mapped = autoMap(headers, localFields);
     setMappings(mapped);
-    setStep(1);
+    setStep(STEP_MAP);
+  };
+
+  // Called when user clicks Continue on the Map step
+  const handleMapContinue = () => {
+    const unresolved = getUnresolvedByField(csvRows, mappings, localFields);
+    if (unresolved.size > 0) {
+      setUnresolvedByField(unresolved);
+      setHasResolveStep(true);
+      setStep(STEP_RESOLVE);
+    } else {
+      setHasResolveStep(false);
+      setStep(STEP_PREVIEW);
+    }
+  };
+
+  // Called when the resolve step finishes (either added options or skipped)
+  const handleResolved = (updatedFields: FieldConfig[]) => {
+    setLocalFields(updatedFields);
+    setStep(STEP_PREVIEW);
   };
 
   const canAdvanceFromMapping = () => {
-    const required = fields.filter((f) => f.required);
+    const required = localFields.filter((f) => f.required);
     const mappedIds = mappings.filter((m) => m.fieldId !== "skip").map((m) => m.fieldId);
     return required.every((f) => mappedIds.includes(f._id));
+  };
+
+  const handleBack = () => {
+    if (step === STEP_RESOLVE) {
+      setStep(STEP_MAP);
+    } else if (step === STEP_PREVIEW) {
+      setStep(hasResolveStep ? STEP_RESOLVE : STEP_MAP);
+    } else if (step === STEP_IMPORT) {
+      setStep(STEP_PREVIEW);
+    } else {
+      setStep((s) => s - 1);
+    }
   };
 
   const handleDone = (result: ImportResult) => {
@@ -661,32 +896,42 @@ export default function ImportCSV({ collectionName, collectionId, fields, onClos
     onComplete?.(result);
   };
 
+  const isLastStep = step === STEP_IMPORT;
+
   return (
     <div className="flex flex-col min-h-0 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold">Import from CSV</h2>
       </div>
 
-      <StepIndicator current={step} />
+      <StepIndicator current={step} hasResolveStep={hasResolveStep} />
 
       <div className="flex-1 overflow-auto">
-        {step === 0 && <UploadStep onParsed={handleParsed} />}
-        {step === 1 && (
+        {step === STEP_UPLOAD && <UploadStep onParsed={handleParsed} />}
+        {step === STEP_MAP && (
           <MapStep
             previewRows={csvRows}
-            fields={fields}
+            fields={localFields}
             mappings={mappings}
             onChange={setMappings}
           />
         )}
-        {step === 2 && (
-          <PreviewStep rows={csvRows} mappings={mappings} fields={fields} />
+        {step === STEP_RESOLVE && (
+          <ResolveStep
+            unresolvedByField={unresolvedByField}
+            fields={localFields}
+            collectionName={collectionName}
+            onResolved={handleResolved}
+          />
         )}
-        {step === 3 && (
+        {step === STEP_PREVIEW && (
+          <PreviewStep rows={csvRows} mappings={mappings} fields={localFields} />
+        )}
+        {step === STEP_IMPORT && (
           <ImportStep
             rows={csvRows}
             mappings={mappings}
-            fields={fields}
+            fields={localFields}
             collectionName={collectionName}
             collectionId={collectionId}
             onDone={handleDone}
@@ -694,28 +939,30 @@ export default function ImportCSV({ collectionName, collectionId, fields, onClos
         )}
       </div>
 
-      {step < 3 && (
+      {/* Navigation — hidden on the resolve step (has its own inline button) and after import finishes */}
+      {step !== STEP_RESOLVE && (!isLastStep || !importResult) && (
         <div className="flex justify-between items-center mt-6 pt-4 border-t">
           <Button
             variant="outline"
-            onClick={() => (step === 0 ? onClose() : setStep((s) => s - 1))}
+            onClick={() => (step === STEP_UPLOAD ? onClose() : handleBack())}
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
-            {step === 0 ? "Cancel" : "Back"}
+            {step === STEP_UPLOAD ? "Cancel" : "Back"}
           </Button>
-          {step > 0 && (
+
+          {step < STEP_IMPORT && (
             <Button
-              onClick={() => setStep((s) => s + 1)}
-              disabled={step === 1 && !canAdvanceFromMapping()}
+              onClick={step === STEP_MAP ? handleMapContinue : () => setStep((s) => s + 1)}
+              disabled={step === STEP_MAP && !canAdvanceFromMapping()}
             >
-              {step === 2 ? "Start Import" : "Continue"}
+              {step === STEP_PREVIEW ? "Start Import" : "Continue"}
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           )}
         </div>
       )}
 
-      {step === 3 && importResult && (
+      {isLastStep && importResult && (
         <div className="flex justify-end mt-6 pt-4 border-t">
           <Button onClick={onClose}>
             <Check className="w-4 h-4 mr-1" /> Done
